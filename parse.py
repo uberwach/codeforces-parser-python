@@ -3,22 +3,20 @@
 # Python 2->3 libraries that were renamed.
 try:
     from urllib2 import urlopen
-except:
+except ImportError:
     from urllib.request import urlopen
 try:
     from HTMLParser import HTMLParser
-except:
+except ImportError:
     from html.parser import HTMLParser
 
 # Other libraries.
 from sys import argv
 from subprocess import call
-from functools import partial, wraps
 import re
- 
+
 # User modifiable constants:
-TEMPLATE='main.cc'
-COMPILE_CMD='g++ -g -std=c++0x -Wall $DBG'
+TEMPLATE='main.py'
 SAMPLE_INPUT='input'
 SAMPLE_OUTPUT='output'
 MY_OUTPUT='my_output'
@@ -41,7 +39,7 @@ class CodeforcesProblemParser(HTMLParser):
         self.num_tests = 0
         self.testcase = None
         self.start_copy = False
-    
+
     def handle_starttag(self, tag, attrs):
         if tag == 'div':
             if attrs == [('class', 'input')]:
@@ -54,7 +52,7 @@ class CodeforcesProblemParser(HTMLParser):
         elif tag == 'pre':
             if self.testcase != None:
                 self.start_copy = True
- 
+
     def handle_endtag(self, tag):
         if tag == 'br':
             if self.start_copy:
@@ -67,17 +65,17 @@ class CodeforcesProblemParser(HTMLParser):
                 self.testcase.close()
                 self.testcase = None
                 self.start_copy = False
-    
+
     def handle_entityref(self, name):
         if self.start_copy:
             self.testcase.write(self.unescape(('&%s;' % name)).encode('utf-8'))
- 
+
     def handle_data(self, data):
         if self.start_copy:
             self.testcase.write(data.encode('utf-8'))
             self.end_line = False
 
-# Contest parser.  
+# Contest parser.
 class CodeforcesContestParser(HTMLParser):
 
     def __init__(self, contest):
@@ -89,10 +87,10 @@ class CodeforcesContestParser(HTMLParser):
         self.problem_name = ''
         self.problems = []
         self.problem_names = []
-    
+
     def handle_starttag(self, tag, attrs):
         if self.name == '' and attrs == [('style', 'color: black'), ('href', '/contest/%s' % (self.contest))]:
-                self.start_contest = True
+            self.start_contest = True
         elif tag == 'option':
             if len(attrs) == 1:
                 regexp = re.compile(r"'[A-Z]'") # The attrs will be something like: ('value', 'X')
@@ -101,7 +99,7 @@ class CodeforcesContestParser(HTMLParser):
                 if search is not None:
                     self.problems.append(search.group(0).split("'")[-2])
                     self.start_problem = True
- 
+
     def handle_endtag(self, tag):
         if tag == 'a' and self.start_contest:
             self.start_contest = False
@@ -109,13 +107,13 @@ class CodeforcesContestParser(HTMLParser):
             self.problem_names.append(self.problem_name)
             self.problem_name = ''
             self.start_problem = False
- 
+
     def handle_data(self, data):
         if self.start_contest:
             self.name = data
         elif self.start_problem:
             self.problem_name += data
-        
+
 # Parses each problem page.
 def parse_problem(folder, contest, problem):
     url = 'http://codeforces.com/contest/%s/problem/%s' % (contest, problem)
@@ -125,7 +123,7 @@ def parse_problem(folder, contest, problem):
     # .encode('utf-8') Should fix special chars problems?
     return parser.num_tests
 
-# Parses the contest page.  
+# Parses the contest page.
 def parse_contest(contest):
     url = 'http://codeforces.com/contest/%s' % (contest)
     html = urlopen(url).read()
@@ -137,13 +135,13 @@ def parse_contest(contest):
 def generate_test_script(folder, num_tests, problem):
     with open(folder + 'test.sh', 'w') as test:
         test.write(
-            ('#!/bin/bash\n'
+            '#!/bin/bash\n'
             'DBG=""\n'
             'while getopts ":d" opt; do\n'
             '  case $opt in\n'
             '    d)\n'
-            '      echo "-d was selected; compiling in DEBUG mode!" >&2\n'
-            '      DBG="-DDEBUG"\n'
+            '      echo "-d was selected; using DEBUG mode!" >&2\n'
+            '      DBG="-d"\n'
             '      ;;\n'
             '    \?)\n'
             '      echo "Invalid option: -$OPTARG" >&2\n'
@@ -151,19 +149,17 @@ def generate_test_script(folder, num_tests, problem):
             '  esac\n'
             'done\n'
             '\n'
-            'if ! '+COMPILE_CMD+' {0}.{1}; then\n'
-            '    exit\n'
-            'fi\n'
             'INPUT_NAME='+SAMPLE_INPUT+'\n'
             'OUTPUT_NAME='+SAMPLE_OUTPUT+'\n'
             'MY_NAME='+MY_OUTPUT+'\n'
-            'rm -R $MY_NAME* &>/dev/null\n').format(problem, TEMPLATE.split('.')[1]))
+            'rm -R $MY_NAME* &>/dev/null\n')
         test.write(
             'for test_file in $INPUT_NAME*\n'
             'do\n'
             '    i=$((${{#INPUT_NAME}}))\n'
             '    test_case=${{test_file:$i}}\n'
-            '    if ! {5} ./a.out < $INPUT_NAME$test_case > $MY_NAME$test_case; then\n'
+            '    chmod 711 {7}.py\n'
+            '    if ! {5} ./{7}.py $DBG < $INPUT_NAME$test_case > $MY_NAME$test_case; then\n'
             '        echo {1}{4}Sample test \#$test_case: Runtime Error{2} {6}\n'
             '        echo ========================================\n'
             '        echo Sample Input \#$test_case\n'
@@ -186,23 +182,23 @@ def generate_test_script(folder, num_tests, problem):
             '        fi\n'
             '    fi\n'
             'done\n'
-            .format(num_tests, BOLD, NORM, GREEN_F, RED_F, TIME_CMD, TIME_AP))
+            .format(num_tests, BOLD, NORM, GREEN_F, RED_F, TIME_CMD, TIME_AP, problem))
     call(['chmod', '+x', folder + 'test.sh'])
 
-# Main function. 
+# Main function.
 def main():
     print (VERSION)
     if(len(argv) < 2):
         print('USAGE: ./parse.py 512')
         return
     contest = argv[1]
-    
+
     # Find contest and problems.
     print ('Parsing contest %s, please wait...' % contest)
     content = parse_contest(contest)
     print (BOLD+GREEN_F+'*** Round name: '+content.name+' ***'+NORM)
     print ('Found %d problems!' % (len(content.problems)))
-    
+
     # Find problems and test cases.
     for index, problem in enumerate(content.problems):
         print ('Downloading Problem %s: %s...' % (problem, content.problem_names[index]))
@@ -213,8 +209,8 @@ def main():
         print('%d sample test(s) found.' % num_tests)
         generate_test_script(folder, num_tests, problem)
         print ('========================================')
-        
+
     print ('Use ./test.sh to run sample tests in each directory.')
- 
+
 if __name__ == '__main__':
     main()
