@@ -9,4 +9,6 @@ def debug(*args, **kwargs):
     if DEBUG:
         print(*args, file=sys.stderr, **kwargs)
 
+    return None
+
 print(0)

@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from __future__ import print_function
 
 # Python 2->3 libraries that were renamed.
 try:
@@ -16,19 +17,19 @@ from subprocess import call
 import re
 
 # User modifiable constants:
-TEMPLATE='main.py'
-SAMPLE_INPUT='input'
-SAMPLE_OUTPUT='output'
-MY_OUTPUT='my_output'
+TEMPLATE = 'main.py'
+SAMPLE_INPUT = 'input'
+SAMPLE_OUTPUT = 'output'
+MY_OUTPUT = 'my_output'
 
 # Do not modify these!
-VERSION='CodeForces Parser v1.5.1: https://github.com/johnathan79717/codeforces-parser'
-RED_F='\033[31m'
-GREEN_F='\033[32m'
-BOLD='\033[1m'
-NORM='\033[0m'
-TIME_CMD='`which time` -o time.out -f "(%es)"'
-TIME_AP='`cat time.out`'
+VERSION = 'CodeForces Parser v1.5.1: https://github.com/johnathan79717/codeforces-parser'
+RED_F = '\033[31m'
+GREEN_F = '\033[32m'
+BOLD = '\033[1m'
+NORM = '\033[0m'
+TIME_CMD = '`which time` -o time.out -f "(%es)"'
+TIME_AP = '`cat time.out`'
 
 # Problems parser.
 class CodeforcesProblemParser(HTMLParser):
@@ -39,6 +40,7 @@ class CodeforcesProblemParser(HTMLParser):
         self.num_tests = 0
         self.testcase = None
         self.start_copy = False
+        self.end_line = None
 
     def handle_starttag(self, tag, attrs):
         if tag == 'div':
