@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 from __future__ import print_function
 
 # Python 2->3 libraries that were renamed.
@@ -15,6 +15,7 @@ except ImportError:
 from sys import argv
 from subprocess import call
 import re
+import os
 
 # User modifiable constants:
 TEMPLATE = 'main.py'
@@ -121,7 +122,7 @@ def parse_problem(folder, contest, problem):
     url = 'http://codeforces.com/contest/%s/problem/%s' % (contest, problem)
     html = urlopen(url).read()
     parser = CodeforcesProblemParser(folder)
-    parser.feed(html.decode('utf-8')) 
+    parser.feed(html.decode('utf-8'))
     # .encode('utf-8') Should fix special chars problems?
     return parser.num_tests
 
@@ -190,10 +191,11 @@ def generate_test_script(folder, num_tests, problem):
 # Main function.
 def main():
     print (VERSION)
-    if(len(argv) < 2):
+    if len(argv) < 2:
         print('USAGE: ./parse.py 512')
         return
     contest = argv[1]
+    base_dir = argv[2] if len(argv) >= 3 else '.'
 
     # Find contest and problems.
     print ('Parsing contest %s, please wait...' % contest)
@@ -204,7 +206,7 @@ def main():
     # Find problems and test cases.
     for index, problem in enumerate(content.problems):
         print ('Downloading Problem %s: %s...' % (problem, content.problem_names[index]))
-        folder = '%s/%s/' % (contest, problem)
+        folder = os.path.join(base_dir, '%s/%s/' % (contest, problem))
         call(['mkdir', '-p', folder])
         call(['cp', '-n', TEMPLATE, '%s/%s/%s.%s' % (contest, problem, problem, TEMPLATE.split('.')[1])])
         num_tests = parse_problem(folder, contest, problem)
